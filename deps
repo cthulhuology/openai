@@ -1,0 +1,2 @@
+{ json, "https://github.com/cthulhuology/json.git" }.
+{ http, "https://github.com/cthulhuology/http.git" }.

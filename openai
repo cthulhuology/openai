@@ -1,0 +1,21 @@
+#!/usr/bin/env escript
+%% -*- erlang -*-
+%% -pa $HOME/.beamer -noshell -noinput
+%%
+%% Copyright 2024 David J Goehrig <dave@dloh.org>
+%%
+
+main(["help"]) ->
+	io:format("openai ask gpt4o-minit a question on the command line~n");
+
+main(Args) ->
+	{ok, [[ Path ]]} = init:get_argument(home),
+	Home = lists:flatten(string:replace(Path,"\\","/",all)),
+	code:add_patha(Home ++ "/.beamer"),
+	Prompt = list_to_binary(lists:join(" ", Args)),
+	openai:start(),
+	openai:chat(Prompt),
+	receive 
+		Message -> io:format("~s~n", [ openai:message(Message) ])
+	after 6000 -> done
+	end.

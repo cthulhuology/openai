@@ -20,69 +20,47 @@
 
 -module(openai).
 -author({ "David J Goehrig", "dave@dloh.org"}).
--copyright(<<"© 2023 David J. Goehrig"/utf8>>).
--behavior(gen_server).
--export([ start_link/0, models/0 ]).
--export([ init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3, engines/0, engine/1 ]).
+-copyright(<<"© 2024 David J. Goehrig"/utf8>>).
+-export([ authorization/0, start/0,
+	models/0, engines/0, engine/1, 
+	chat/1, then/1, message/1 ]).
 
-start_link() ->
-	gen_server:start_link({ local, ?MODULE}, ?MODULE, { }, []).
+-define(ENDPOINT, "https://api.openai.com/v1").
+
+authorization() ->
+	Auth = list_to_binary(os:getenv("OPENAI_KEY")),
+	<<"Bearer ", Auth/binary>>.
+
+message(JSON) ->
+	[Choices] = proplists:get_value(<<"choices">>,json:decode(JSON)),
+	Message = proplists:get_value(<<"message">>,Choices),
+	proplists:get_value(<<"content">>,Message).
+
+start() ->
+	Self = self(),
+	HTTP = http:start(),
+	http:then(fun(JSON) -> Self ! JSON end),
+	HTTP.
+
+then(Fun) ->
+	http:then(Fun).
 	
 models() ->
-	gen_server:cast(?MODULE,models).
+	http:get(?ENDPOINT ++ "/models", [ { <<"Authorization">>, authorization() } ]).
 
 engines() ->
-	gen_server:cast(?MODULE,engines).
+	http:get(?ENDPOINT ++ "/engines", [ { <<"Authorization">>, authorization() } ]).
 
 engine(Id) ->
-	gen_server:cast(?MODULE,{engine, Id }).
+	http:get(?ENDPOINT ++ "/engines/" ++ Id, [ { <<"Authorization">>, authorization() } ]).
 
-
-init({ }) ->
-	{ ok, []}.
-
-handle_call(Message, _From, State) ->
-	io:format("Unknown message ~p~n", [ Message ]),
-	{ reply, ok, State }.
-
-handle_cast(models, State) ->
-	http:then( fun(Json) -> ?MODULE ! { models, json:decode(Json) } end),
-	http:get("https://api.openai.com/v1/models", [ 'Authorization' ]),
-	{ noreply, State };
-
-handle_cast(engines, State) ->
-	http:then( fun(Json) -> ?MODULE ! { engines, json:decode(Json) } end),
-	http:get("https://api.openai.com/v1/engines", [ 'Authorization' ]),
-	{ noreply, State };
-
-handle_cast({engine,Id}, State) ->
-	http:then( fun(Json) -> ?MODULE ! { engine, Id, json:decode(Json) } end),
-	http:get("https://api.openai.com/v1/engines/" ++ Id, [ 'Authorization' ]),
-	{ noreply, State };
-
-handle_cast(Message, State) ->
-	io:format("Unknown message ~p~n", [ Message ]),
-	{ noreply, State }.
-
-handle_info({models, Models}, State) ->
-	io:format("Models ~p~n", [ Models ]),
-	{ noreply, State };
-
-handle_info({engines, Engines}, State) ->
-	io:format("Engines ~p~n", [ Engines ]),
-	{ noreply, State };
-
-handle_info({engine, Id, Engine}, State) ->
-	io:format("Engine ~p >> ~p~n", [ Id, Engine ]),
-	{ noreply, State };
-
-
-handle_info(Message, State) ->
-	io:format("Unknown message ~p~n", [ Message ]),
-	{ noreply, State }.
-
-terminate( _Reason, _State) ->
-	ok.
-
-code_change( _Old, State, _Extra ) ->
-	{ ok, State }.
+chat(Prompt) when is_list(Prompt) ->
+	chat(list_to_binary(Prompt));
+chat(Prompt) ->
+	Payload = json:encode([
+		{ <<"model">>, <<"gpt-4o-mini">>}, 
+		{ <<"messages">>, [ [{<<"role">>, <<"user">>}, {<<"content">>, Prompt }]]}]),
+	http:post(?ENDPOINT ++ "/chat/completions", [
+		{ <<"content-type">>, <<"application/json">> },
+		{ <<"content-length">>, integer_to_binary(byte_size(Payload)) }, 
+		{ <<"Authorization">>, authorization() } ], Payload).

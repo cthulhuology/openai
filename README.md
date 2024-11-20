@@ -6,10 +6,13 @@ openai - Erlang Interface for OpenAI
 Getting Started
 ---------------
 
-	http:start(),
-	http:creds(),  %% if you have a creds file with your Authorization header
-	openai:start_link(),
-	openai:models()
+	openai:start(),
+	openai:then( fun(JSON) -> 
+		[Choices] = proplists:get_value(<<"choices">>,json:decode(JSON)),
+		[Message] = proplists:get_Value(<<"message">>,Choices),
+		Content = proplists:get_value(<<"content">>,Message),
+		io:format("~s~n", [ Content ]) end),
+	openai:chat("Write me a poem").
 
 I need to work on making the calls useful, but I don't know what I want to
 do with them yet... :)
