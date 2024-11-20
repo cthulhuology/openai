@@ -14,12 +14,31 @@ Getting Started
 		io:format("~s~n", [ Content ]) end),
 	openai:chat("Write me a poem").
 
-I need to work on making the calls useful, but I don't know what I want to
-do with them yet... :)
+
+Design of API
+-------------
+
+This module is based on my http, json, and beamer modules.   You will need beamer
+installed to make optimal use of this module. Once you have beamer installed you
+can do a simple:
+
+	beamer deps
+	beamer make
+
+And then export your OPENAI_KEY= environment variable.  To run a simple test you
+can then invoke the provided escript executable:
+
+	./openai write me a haiku
+
+It should then proceed to write you a haiku for about a penny.
+
+
+LICENSE
+-------
 
 MIT License
 
-Copyright (c) 2023 David J Goehrig
+Copyright (c) 2024 David J Goehrig
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
